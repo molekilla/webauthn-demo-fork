@@ -1,66 +1,67 @@
 'use strict';
 /* Handle for register form submission */
-$('#register').submit(function(event) {
+$('#register').submit(function (event) {
     event.preventDefault();
 
     let username = this.username.value;
-    let password = this.password.value;
-    let name     = this.name.value;
+    let name = this.name.value;
 
-    if(!username || !password || !name) {
-        alert('Name, username or password is missing!')
+    if (!username || !name) {
+        alert('Name or username is missing!')
         return
     }
 
-    let formBody = {username, password, name}; 
+    getMakeCredentialsChallenge({
+            username,
+            name
+        })
+        .then((response) => {
+            let publicKey = preformatMakeCredReq(response);
+            return navigator.credentials.create({
+                publicKey
+            })
+        })
+        .then((response) => {
+            let makeCredResponse = publicKeyCredentialToJSON(response);
+            return sendWebAuthnResponse(makeCredResponse)
+        })
+        .then((response) => {
+            if (response.status === 'ok') {
+                loadMainContainer()
+            } else {
+                alert(`Server responed with error. The message is: ${response.message}`);
+            }
+        })
+        .catch((error) => alert(error))
 
-    fetch('/password/register', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formBody)
-    })
-    .then((response) => response.json())
-    .then((response) => {
-        if(response.status === 'ok') {
-            loadMainContainer()
-        } else {
-            alert(`Server responed with error. The message is: ${response.message}`);
-        }
-    })
+
 })
-
 /* Handle for login form submission */
 $('#login').submit(function(event) {
     event.preventDefault();
 
     let username = this.username.value;
-    let password = this.password.value;
 
-    if(!username || !password) {
-        alert('Username or password is missing!')
+    if(!username) {
+        alert('Username is missing!')
         return
     }
 
-    let formBody = {username, password}; 
-    fetch('/password/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formBody)
-    })
-    .then((response) => response.json())
-    .then((response) => {
-        if(response.status === 'ok') {
-            loadMainContainer()   
-        } else {
-            alert(`Server responed with error. The message is: ${response.message}`);
-        }
-    })
+    getGetAssertionChallenge({username})
+        .then((response) => {
+            let publicKey = preformatGetAssertReq(response);
+            return navigator.credentials.get({ publicKey })
+        })
+        .then((response) => {
+            let getAssertionResponse = publicKeyCredentialToJSON(response);
+            return sendWebAuthnResponse(getAssertionResponse)
+        })
+        .then((response) => {
+            if(response.status === 'ok') {
+                loadMainContainer()   
+            } else {
+                alert(`Server responed with error. The message is: ${response.message}`);
+            }
+        })
+        .catch((error) => alert(error))
 })
-
-
